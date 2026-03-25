@@ -22,9 +22,10 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 COMMANDS = {
-    "fulgur":     ["fulgur", "render", "{input}", "-o", "{output}"],
-    "fullbleed":  ["fullbleed", "render", "--html", "{input}", "--out", "{output}"],
-    "weasyprint": ["weasyprint", "{input}", "{output}"],
+    "fulgur":      ["fulgur", "render", "{input}", "-o", "{output}", "--css", "{css}"],
+    "fullbleed":   ["fullbleed", "render", "--html", "{input}", "--out", "{output}", "--css", "{css}"],
+    "weasyprint":  ["weasyprint", "{input}", "{output}", "-s", "{css}"],
+    "wkhtmltopdf": ["wkhtmltopdf", "--user-style-sheet", "{css}", "{input}", "{output}"],
 }
 
 
@@ -93,9 +94,9 @@ def check_tool(tool_name: str) -> bool:
     return shutil.which(tool_name) is not None
 
 
-def build_command(template: list[str], input_path: str, output_path: str) -> list[str]:
-    """Substitute {input} and {output} placeholders in a command template."""
-    return [part.replace("{input}", input_path).replace("{output}", output_path)
+def build_command(template: list[str], input_path: str, output_path: str, css_path: str) -> list[str]:
+    """Substitute {input}, {output}, and {css} placeholders in a command template."""
+    return [part.replace("{input}", input_path).replace("{output}", output_path).replace("{css}", css_path)
             for part in template]
 
 
@@ -155,7 +156,7 @@ def measure_with_resource(cmd: list[str]) -> int | None:
 # Single benchmark run
 # ---------------------------------------------------------------------------
 
-def run_once(tool: str, cmd_template: list[str], input_path: str) -> tuple[float, int | None, int | None]:
+def run_once(tool: str, cmd_template: list[str], input_path: str, css_path: str) -> tuple[float, int | None, int | None]:
     """
     Execute the tool once, returning (elapsed_seconds, memory_kb, output_size_bytes).
     A fresh temp file is used for each run so size is always measured.
@@ -164,7 +165,7 @@ def run_once(tool: str, cmd_template: list[str], input_path: str) -> tuple[float
         output_path = tmp.name
 
     try:
-        cmd = build_command(cmd_template, input_path, output_path)
+        cmd = build_command(cmd_template, input_path, output_path, css_path)
 
         # Try Linux /usr/bin/time -v first for memory
         # We time it separately so our perf_counter wraps the real process.
@@ -205,6 +206,7 @@ def benchmark_tool(
     tool: str,
     cmd_template: list[str],
     input_path: str,
+    css_path: str,
     runs: int,
     warmup: int,
 ) -> dict:
@@ -213,14 +215,14 @@ def benchmark_tool(
     """
     # Warmup runs (results discarded)
     for _ in range(warmup):
-        run_once(tool, cmd_template, input_path)
+        run_once(tool, cmd_template, input_path, css_path)
 
     times_s: list[float] = []
     memory_samples: list[int] = []
     last_output_size: int | None = None
 
     for _ in range(runs):
-        elapsed, mem_kb, out_size = run_once(tool, cmd_template, input_path)
+        elapsed, mem_kb, out_size = run_once(tool, cmd_template, input_path, css_path)
         times_s.append(elapsed)
         if mem_kb is not None:
             memory_samples.append(mem_kb)
@@ -243,10 +245,10 @@ def benchmark_tool(
 # HTML document generation
 # ---------------------------------------------------------------------------
 
-def generate_test_documents(output_dir: str) -> dict[str, str]:
+def generate_test_documents(output_dir: str) -> tuple[dict[str, str], str]:
     """
-    Generate test HTML documents using templates.generate and return
-    a mapping of {document_name: file_path}.
+    Generate test HTML documents and shared CSS using templates.generate.
+    Returns (document mapping, css file path).
     """
     # Add project root to sys.path so templates package is importable
     project_root = str(Path(__file__).parent)
@@ -327,7 +329,7 @@ def main() -> None:
     commands = dict(COMMANDS)
     if args.fulgur_dev:
         dev_path = str(Path(args.fulgur_dev).resolve())
-        commands["fulgur-dev"] = [dev_path, "render", "{input}", "-o", "{output}"]
+        commands["fulgur-dev"] = [dev_path, "render", "{input}", "-o", "{output}", "--css", "{css}"]
 
     # Ensure results/ directory exists
     results_dir = Path(__file__).parent / "results"
@@ -340,7 +342,7 @@ def main() -> None:
     html_dir = tempfile.mkdtemp(prefix="fulgur-bench-html-")
     try:
         print("Generating test HTML documents...", flush=True)
-        documents = generate_test_documents(html_dir)
+        documents, css_path = generate_test_documents(html_dir)
 
         all_results: list[dict] = []
 
@@ -361,7 +363,7 @@ def main() -> None:
 
                 try:
                     metrics = benchmark_tool(
-                        tool, cmd_template, input_path,
+                        tool, cmd_template, input_path, css_path,
                         runs=args.runs, warmup=args.warmup
                     )
                     all_results.append({

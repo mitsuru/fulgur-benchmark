@@ -132,9 +132,6 @@ def _wrap_html(title: str, body: str) -> str:
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{title}</title>
-        <style>
-        {_BASE_CSS}
-        </style>
         </head>
         <body>
         {body}
@@ -256,8 +253,17 @@ def generate_html(name: str, output_dir: str) -> str:
     return file_path
 
 
-def generate_all(output_dir: str) -> dict[str, str]:
-    """Generate all benchmark documents and return a mapping of name to path.
+def generate_css(output_dir: str) -> str:
+    """Write the shared CSS file and return its absolute path."""
+    os.makedirs(output_dir, exist_ok=True)
+    css_path = os.path.abspath(os.path.join(output_dir, "style.css"))
+    with open(css_path, "w", encoding="utf-8") as fh:
+        fh.write(_BASE_CSS)
+    return css_path
+
+
+def generate_all(output_dir: str) -> tuple[dict[str, str], str]:
+    """Generate all benchmark documents and the shared CSS file.
 
     Parameters
     ----------
@@ -266,10 +272,12 @@ def generate_all(output_dir: str) -> dict[str, str]:
 
     Returns
     -------
-    dict[str, str]
-        ``{"small": "/abs/path/small.html", "medium": ..., "large": ...}``
+    tuple[dict[str, str], str]
+        A tuple of (document mapping, css file path).
     """
-    return {name: generate_html(name, output_dir) for name in _BUILDERS}
+    css_path = generate_css(output_dir)
+    docs = {name: generate_html(name, output_dir) for name in _BUILDERS}
+    return docs, css_path
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +291,8 @@ if __name__ == "__main__":
     output_dir = sys.argv[1] if len(sys.argv) > 1 else default_output
 
     print(f"Generating benchmark HTML documents in: {os.path.abspath(output_dir)}")
-    paths = generate_all(output_dir)
+    paths, css_path = generate_all(output_dir)
+    print(f"  CSS:      {css_path}")
     for doc_name, doc_path in sorted(paths.items()):
         size_kb = os.path.getsize(doc_path) / 1024
         print(f"  {doc_name:<8}  {doc_path}  ({size_kb:.1f} KB)")
