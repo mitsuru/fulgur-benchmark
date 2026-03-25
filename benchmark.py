@@ -313,11 +313,21 @@ def parse_args() -> argparse.Namespace:
         "--warmup", type=int, default=1, metavar="N",
         help="Number of warmup runs before measurement (default: 1)."
     )
+    parser.add_argument(
+        "--fulgur-dev", metavar="PATH",
+        help="Path to a development build of fulgur to benchmark alongside the installed version."
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+
+    # Build the command map, optionally adding fulgur-dev
+    commands = dict(COMMANDS)
+    if args.fulgur_dev:
+        dev_path = str(Path(args.fulgur_dev).resolve())
+        commands["fulgur-dev"] = [dev_path, "render", "{input}", "-o", "{output}"]
 
     # Ensure results/ directory exists
     results_dir = Path(__file__).parent / "results"
@@ -335,10 +345,10 @@ def main() -> None:
         all_results: list[dict] = []
 
         for doc_name, input_path in sorted(documents.items()):
-            for tool, cmd_template in COMMANDS.items():
+            for tool, cmd_template in commands.items():
                 print(f"  Benchmarking {tool} on '{doc_name}'...", flush=True)
 
-                if not check_tool(tool):
+                if not check_tool(cmd_template[0]):
                     print(f"    {tool} not installed, skipping.")
                     all_results.append({
                         "tool": tool,
