@@ -1,0 +1,6 @@
+[tools]
+python = "3.11"
+rust = "latest"
+"pipx:fullbleed" = "latest"
+"pipx:weasyprint" = "latest"
+"cargo:fulgur-cli" = "latest"
