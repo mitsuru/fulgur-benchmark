@@ -23,7 +23,10 @@ from pathlib import Path
 
 COMMANDS = {
     "fulgur":      ["fulgur", "render", "{input}", "-o", "{output}", "--css", "{css}"],
-    "fullbleed":   ["fullbleed", "render", "--html", "{input}", "--out", "{output}", "--css", "{css}"],
+    "fullbleed":   ["fullbleed", "render", "--html", "{input}", "--out", "{output}", "--css", "{css}",
+                    "--asset", "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+                    "--asset", "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+                    "--unicode-support", "--shape-text"],
     "weasyprint":  ["weasyprint", "{input}", "{output}", "-s", "{css}"],
     "wkhtmltopdf": ["wkhtmltopdf", "--user-style-sheet", "{css}", "{input}", "{output}"],
 }

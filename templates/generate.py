@@ -71,7 +71,7 @@ _SVG_COLORS = ["#4A90D9", "#E07B54", "#6ABF69", "#F5C842", "#9B59B6"]
 _BASE_CSS = textwrap.dedent("""\
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-        font-family: Georgia, 'Times New Roman', serif;
+        font-family: 'DejaVu Serif', serif;
         font-size: 12pt;
         line-height: 1.6;
         color: #222;
